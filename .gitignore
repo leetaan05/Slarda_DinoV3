@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+notebooks/weights/
+notebooks/generated/
+notebooks/colab_upload/
+notebooks/*.safetensors
+notebooks/*.pth
