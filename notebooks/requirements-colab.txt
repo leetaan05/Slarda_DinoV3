@@ -1,5 +1,0 @@
-# Keep Colab's CUDA-enabled torch installation; require Python >=3.11 and torch>=2.7.
-mne>=1.7,<2
-matplotlib>=3.8,<4
-timm==1.0.22
-safetensors==0.5.3
