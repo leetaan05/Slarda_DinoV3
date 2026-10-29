@@ -4,7 +4,7 @@ This research implementation replaces SLARDA's 1D CNN EEG encoder with **DINOv3 
 
 The integration investigates whether image-pretrained features transfer to EEG. Correct tensor shapes and gradients establish that the components connect; they do not establish better sleep staging accuracy or reproduce the paper's results.
 
-**Documentation updated:** 2026-10-30. **Repository branch:** `main`. **Maintainer:** [leetaan05](https://github.com/leetaan05). The supported DINOv3 path is EEG; the inherited HAR and fault-diagnosis classes are outside this integration.
+**Documentation updated:** 2026-10-30. **Repository branch:** `main`. **Maintainer:** [leetaan05](https://github.com/leetaan05). The published research files focus on EEG sleep staging. HAR and fault-diagnosis configuration/model files have been removed; legacy baseline classes remain inside shared modules.
 
 **Contents:** [Architecture](#1-architecture) · [Encoder replacement](#2-how-the-encoder-is-replaced) · [Learning](#3-how-the-integrated-model-learns) · [Code map](#4-code-map) · [Environment](#5-environment-and-model-weights) · [Setup](#6-setup) · [Data](#7-data-contract) · [Run and verify](#8-run-and-verify) · [Troubleshooting](#9-troubleshooting) · [Limitations](#10-limitations-and-evaluation) · [References](#11-references-and-licenses)
 
@@ -105,9 +105,11 @@ If no pseudo-label exceeds the confidence threshold, its classification loss is 
 
 The inherited trainer also calls the discriminator optimizer a second time after target backward. Consequently, its optimizer behavior is not fully described by an idealized “one discriminator step, one target step” diagram. Review this behavior when designing controlled experiments; the encoder integration does not rewrite that trainer.
 
-### Separate self-supervised entrypoint
+### Optional EEG self-supervised entrypoint
 
 [`Self-supervised training/main.py`](Self-supervised%20training/main.py) runs CPC pretraining followed by supervised fine-tuning for each discovered EEG domain. Its [`EEG_DINOv3_S`](Self-supervised%20training/models/EEG_models.py) uses the same adapter and a CPC module with 128 input channels, a 64-dimensional GRU context and 10 prediction steps. Pretraining returns a scalar CPC loss; fine-tuning returns logits and features.
+
+**This folder is not required to run the current pretrained-DINOv3 + supervised-source + SLARDA adaptation path.** `train_CD.py` never calls `Self-supervised training/main.py`. The folder is retained as an optional EEG CPC experiment, not as a mandatory installation or execution stage. Replacing the encoder and choosing a pretraining objective are separate decisions: image-pretrained DINOv3 weights do not automatically perform CPC on EEG.
 
 This branch saves its own checkpoints. `train_CD.py` does **not** automatically import them: the source checkpoint it uses comes from its own source-supervised trainer. Transfer between the CPC and adaptation checkpoint formats has not been established as an end-to-end reproduction of the paper.
 
@@ -285,7 +287,7 @@ experiments_logs/Proposed/SLARDA_EEG_*/  # Logs and result spreadsheets
 
 The adaptation checkpoint contains the target, teacher, discriminator, optimizer and scheduler states and completed epoch. `--resume` resumes from an existing progress checkpoint; completed source weights may be reused. Final test evaluation compares source-only and adapted models. These are expected artifacts of a completed run, not results supplied by this README.
 
-### C. Run the separate CPC branch
+### C. Optional: run the separate EEG CPC experiment
 
 Start from `SLARDA_DINOv3/`, with the same data and checkpoint configuration:
 
@@ -325,4 +327,3 @@ A meaningful comparison with the CNN baseline should use identical subject split
 - **Backbone:** [Meta DINOv3](https://github.com/facebookresearch/dinov3), [official model card](https://huggingface.co/facebook/dinov3-vits16-pretrain-lvd1689m), and [Transformers DINOv3 documentation](https://huggingface.co/docs/transformers/model_doc/dinov3).
 - **README presentation reference:** [DeepSatModels-DINOv3](https://github.com/loanhviet/DeepSatModels-DINOv3), for its architecture, code mapping and verification walkthrough. Its satellite-specific adapters and frozen-backbone choices are not this EEG implementation.
 - **Code licenses:** the inherited training trees retain their [adaptation MIT license](Autorgressive_Adaptation/LICENSE) and [self-supervised MIT license](Self-supervised%20training/LICENSE). DINOv3 weights have their [own license terms](https://github.com/facebookresearch/dinov3/blob/main/LICENSE.md). The paper figure retains its original attribution and is not covered by the code's MIT license.
-- **Repository operations:** see the root [GitHub command guide](../README_GITHUB_COMMANDS.md).
