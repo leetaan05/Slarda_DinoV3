@@ -12,7 +12,7 @@ The integration investigates whether image-pretrained features transfer to EEG. 
 
 ### Original SLARDA framework
 
-![Original SLARDA framework: source encoder and classifier, autoregressive domain discriminator, target model, and EMA teacher.](docs/figures/slarda-framework.png)
+![Original SLARDA framework: source encoder and classifier, autoregressive domain discriminator, target model, and EMA teacher.](SLARDA_DINOv3/docs/figures/slarda-framework.png)
 
 *Figure 1. Figure 2 from Ragab et al., “Self-supervised Autoregressive Domain Adaptation for Time Series Data,” cropped from page 3 of the supplied paper. Source: [arXiv:2111.14834v2](https://arxiv.org/abs/2111.14834v2). Copyright 2022 IEEE. This figure describes the original method; it does not depict a DINOv3 experiment.*
 
@@ -38,7 +38,7 @@ All of these operations run in the Python process on the selected CPU or GPU. Mo
 
 ### Why an adapter is needed
 
-The original EEG CNN learns directly from `[B,1,3000]` waveforms. DINOv3 expects three-channel images. [`EEGToDINOv3`](dinov3_eeg.py) bridges these modalities and returns the same temporal feature dimensions as the EEG CNN. This preserves the classifier input and the GRU discriminator input while changing how those features are computed.
+The original EEG CNN learns directly from `[B,1,3000]` waveforms. DINOv3 expects three-channel images. [`EEGToDINOv3`](SLARDA_DINOv3/dinov3_eeg.py) bridges these modalities and returns the same temporal feature dimensions as the EEG CNN. This preserves the classifier input and the GRU discriminator input while changing how those features are computed.
 
 | Component | Original EEG path | DINOv3 EEG path |
 | --- | --- | --- |
@@ -54,7 +54,7 @@ Keeping an interface does not keep the predictions or feature statistics. Train 
 
 ### Tensor walkthrough
 
-[`EEGToDINOv3._spectrogram()`](dinov3_eeg.py) and [`EEGToDINOv3.forward()`](dinov3_eeg.py) implement the following operations:
+[`EEGToDINOv3._spectrogram()`](SLARDA_DINOv3/dinov3_eeg.py) and [`EEGToDINOv3.forward()`](SLARDA_DINOv3/dinov3_eeg.py) implement the following operations:
 
 | Step | Operation | Output |
 | --- | --- | --- |
@@ -88,7 +88,7 @@ Three repeated channels are still one EEG measurement. The adapter discards STFT
 
 ### Adaptation entrypoint
 
-[`train_CD.py`](Autorgressive_Adaptation/train_CD.py) selects `EEG_DINOv3_S`. [`trainer/SLARDA.py`](Autorgressive_Adaptation/trainer/SLARDA.py) builds source, target and teacher copies. If a DINOv3 source checkpoint is absent, [`trainer/source_only.py`](Autorgressive_Adaptation/trainer/source_only.py) trains one using labeled source epochs. All three models then load that source state.
+[`train_CD.py`](SLARDA_DINOv3/Autorgressive_Adaptation/train_CD.py) selects `EEG_DINOv3_S`. [`trainer/SLARDA.py`](SLARDA_DINOv3/Autorgressive_Adaptation/trainer/SLARDA.py) builds source, target and teacher copies. If a DINOv3 source checkpoint is absent, [`trainer/source_only.py`](SLARDA_DINOv3/Autorgressive_Adaptation/trainer/source_only.py) trains one using labeled source epochs. All three models then load that source state.
 
 Let `F` denote temporal features, `C` the classifier and `D` the discriminator. The main objectives are:
 
@@ -123,7 +123,7 @@ SLARDA_DINOv3/
 │   └── trainer/                  # Source supervision, SLARDA, evaluation
 ```
 
-The principal encoder change is [`dinov3_eeg.py`](dinov3_eeg.py), connected through the EEG model wrapper. Supporting changes in the copied adaptation code include domain discovery, empty pseudo-label handling and checkpoint/resume support. Those operational changes should be distinguished from the backbone substitution. The current workflow trains the source model with labels; it does not include a separate EEG CPC pretraining stage.
+The principal encoder change is [`dinov3_eeg.py`](SLARDA_DINOv3/dinov3_eeg.py), connected through the EEG model wrapper. Supporting changes in the copied adaptation code include domain discovery, empty pseudo-label handling and checkpoint/resume support. Those operational changes should be distinguished from the backbone substitution. The current workflow trains the source model with labels; it does not include a separate EEG CPC pretraining stage.
 
 ## 5. Environment and model weights
 
@@ -131,14 +131,14 @@ The principal encoder change is [`dinov3_eeg.py`](dinov3_eeg.py), connected thro
 | --- | --- |
 | Local environment inspected | Windows; Python 3.13.9 |
 | Installed core package metadata | PyTorch 2.14.1, torchvision 0.29.1, Transformers 5.20.1, safetensors 0.8.0, einops 0.8.2 |
-| Dependency list | [`requirements.txt`](requirements.txt); it is not a complete version lock |
+| Dependency list | [`requirements.txt`](SLARDA_DINOv3/requirements.txt); it is not a complete version lock |
 | Backbone | [`facebook/dinov3-vits16-pretrain-lvd1689m`](https://huggingface.co/facebook/dinov3-vits16-pretrain-lvd1689m), ViT-S/16, 384-dimensional patch tokens |
 | Compute | CPU for the small smoke checks; CUDA recommended for research training |
 | Memory | Adaptation constructs three ViT copies plus a discriminator; required RAM/VRAM depends on batch size and device and has not been benchmarked here |
 
 The installed versions above describe the existing environment, not a guarantee for every operating system or a locked dependency resolution. The old upstream PyTorch 1.7 environment is unsuitable for this Transformers-based DINOv3 path.
 
-Obtain authorized pretrained weights from the official model page. Two loading routes exist in [`dinov3_eeg.py`](dinov3_eeg.py):
+Obtain authorized pretrained weights from the official model page. Two loading routes exist in [`dinov3_eeg.py`](SLARDA_DINOv3/dinov3_eeg.py):
 
 1. **Raw Meta `.safetensors` file:** `_load_meta_safetensors()` converts the original key names into Transformers names, including splitting Q/K/V weights. It checks required keys and rejects incomplete conversions, allowing only the unused mask token to be missing.
 2. **Transformers checkpoint directory or model ID:** `DINOv3ViTModel.from_pretrained(model_id)` handles that format. A remote ID may need network access and Hugging Face authentication; a local directory needs its configuration and model files.
@@ -256,7 +256,7 @@ Use `--device cpu` to select CPU. By default, the script evaluates every ordered
 | Teacher EMA momentum | 0.996 |
 | Discriminator | GRU, hidden dimension 512 |
 
-Edit [`Autorgressive_Adaptation/config_files/EEG_Configs.py`](Autorgressive_Adaptation/config_files/EEG_Configs.py) to change these values. The active loader uses the outer `Config.batch_size=8`; the nested supervised batch setting does not rebuild the already-created loaders.
+Edit [`Autorgressive_Adaptation/config_files/EEG_Configs.py`](SLARDA_DINOv3/Autorgressive_Adaptation/config_files/EEG_Configs.py) to change these values. The active loader uses the outer `Config.batch_size=8`; the nested supervised batch setting does not rebuild the already-created loaders.
 
 Expected progress includes `Source: a ---> Target: b`, a run ID, epoch/loss reports and `Saved resumable adaptation checkpoint:`. Outputs are written relative to the adaptation directory:
 
@@ -297,4 +297,4 @@ A meaningful comparison with the CNN baseline should use identical subject split
 - **Original method:** Ragab et al., [Self-supervised Autoregressive Domain Adaptation for Time Series Data](https://arxiv.org/abs/2111.14834v2); [official SLARDA code](https://github.com/mohamedr002/SLARDA).
 - **Backbone:** [Meta DINOv3](https://github.com/facebookresearch/dinov3), [official model card](https://huggingface.co/facebook/dinov3-vits16-pretrain-lvd1689m), and [Transformers DINOv3 documentation](https://huggingface.co/docs/transformers/model_doc/dinov3).
 - **README presentation reference:** [DeepSatModels-DINOv3](https://github.com/loanhviet/DeepSatModels-DINOv3), for its architecture, code mapping and verification walkthrough. Its satellite-specific adapters and frozen-backbone choices are not this EEG implementation.
-- **Code license:** the inherited adaptation tree retains its [MIT license](Autorgressive_Adaptation/LICENSE). DINOv3 weights have their [own license terms](https://github.com/facebookresearch/dinov3/blob/main/LICENSE.md). The paper figure retains its original attribution and is not covered by the code's MIT license.
+- **Code license:** the inherited adaptation tree retains its [MIT license](SLARDA_DINOv3/Autorgressive_Adaptation/LICENSE). DINOv3 weights have their [own license terms](https://github.com/facebookresearch/dinov3/blob/main/LICENSE.md). The paper figure retains its original attribution and is not covered by the code's MIT license.
