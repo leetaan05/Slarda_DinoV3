@@ -105,16 +105,6 @@ If no pseudo-label exceeds the confidence threshold, its classification loss is 
 
 The inherited trainer also calls the discriminator optimizer a second time after target backward. Consequently, its optimizer behavior is not fully described by an idealized “one discriminator step, one target step” diagram. Review this behavior when designing controlled experiments; the encoder integration does not rewrite that trainer.
 
-### Optional EEG self-supervised entrypoint
-
-[`Self-supervised training/main.py`](Self-supervised%20training/main.py) runs CPC pretraining followed by supervised fine-tuning for each discovered EEG domain. Its [`EEG_DINOv3_S`](Self-supervised%20training/models/EEG_models.py) uses the same adapter and a CPC module with 128 input channels, a 64-dimensional GRU context and 10 prediction steps. Pretraining returns a scalar CPC loss; fine-tuning returns logits and features.
-
-**This folder is not required to run the current pretrained-DINOv3 + supervised-source + SLARDA adaptation path.** `train_CD.py` never calls `Self-supervised training/main.py`. The folder is retained as an optional EEG CPC experiment, not as a mandatory installation or execution stage. Replacing the encoder and choosing a pretraining objective are separate decisions: image-pretrained DINOv3 weights do not automatically perform CPC on EEG.
-
-This branch saves its own checkpoints. `train_CD.py` does **not** automatically import them: the source checkpoint it uses comes from its own source-supervised trainer. Transfer between the CPC and adaptation checkpoint formats has not been established as an end-to-end reproduction of the paper.
-
-DINOv3 attention covers the entire spectrogram. Thus, features associated with an early time position can contain later context; CPC on these features should not be interpreted as strictly causal EEG forecasting.
-
 ## 4. Code map
 
 ```text
@@ -131,14 +121,9 @@ SLARDA_DINOv3/
 │   ├── dataloader/dataloader.py
 │   ├── models/models.py          # EEG_DINOv3_S and domain discriminators
 │   └── trainer/                  # Source supervision, SLARDA, evaluation
-└── Self-supervised training/
-    ├── main.py
-    ├── config_files/EEG_Configs.py
-    ├── models/EEG_models.py      # CPC / fine-tune wrapper
-    └── models/CPC.py
 ```
 
-The principal encoder change is [`dinov3_eeg.py`](dinov3_eeg.py), connected through the two EEG wrappers. Supporting changes in the copied training code include device-aware CPC tensors, validation-split loading, domain discovery, empty pseudo-label handling and checkpoint/resume support. Those operational changes should be distinguished from the backbone substitution.
+The principal encoder change is [`dinov3_eeg.py`](dinov3_eeg.py), connected through the EEG model wrapper. Supporting changes in the copied adaptation code include domain discovery, empty pseudo-label handling and checkpoint/resume support. Those operational changes should be distinguished from the backbone substitution. The current workflow trains the source model with labels; it does not include a separate EEG CPC pretraining stage.
 
 ## 5. Environment and model weights
 
@@ -232,18 +217,15 @@ Working directory: `SLARDA_DINOv3/`. Run each command in its own process because
 
 ```powershell
 .\.venv\Scripts\python.exe smoke_test.py adaptation
-.\.venv\Scripts\python.exe smoke_test.py self_supervised
 ```
 
 Expected final lines:
 
 ```text
 adaptation logits (2, 5) temporal (2, 128, 22) classification forward/backward OK
-CPC forward/backward: <finite numeric loss>
-self_supervised logits (2, 5) temporal (2, 128, 22) classification forward/backward OK
 ```
 
-The checks assert the flattened shape `(2,2816)`, gradients in the projection and backbone, and a `(2,1)` GRU discriminator output with gradients in its output layer. The self-supervised check also backpropagates CPC loss. Inputs are synthetic EEG and weights are random, so no accuracy claim follows from passing these checks. They do not check a complete optimizer update or checkpoint round trip.
+The check asserts the flattened shape `(2,2816)`, gradients in the projection and backbone, and a `(2,1)` GRU discriminator output with gradients in its output layer. Inputs are synthetic EEG and weights are random, so no accuracy claim follows from passing this check. It does not check a complete optimizer update or checkpoint round trip.
 
 To also exercise pretrained loading, first configure the checkpoint path as above, then run:
 
@@ -287,17 +269,6 @@ experiments_logs/Proposed/SLARDA_EEG_*/  # Logs and result spreadsheets
 
 The adaptation checkpoint contains the target, teacher, discriminator, optimizer and scheduler states and completed epoch. `--resume` resumes from an existing progress checkpoint; completed source weights may be reused. Final test evaluation compares source-only and adapted models. These are expected artifacts of a completed run, not results supplied by this README.
 
-### C. Optional: run the separate EEG CPC experiment
-
-Start from `SLARDA_DINOv3/`, with the same data and checkpoint configuration:
-
-```powershell
-cd 'Self-supervised training'
-..\.venv\Scripts\python.exe main.py --device cuda --selected_dataset EEG
-```
-
-Expected: `====Start Pretraining...` followed by `====Start Finetunning...` for each discovered domain. The script runs both stages even though a `--training_mode` argument exists. Its config defaults to 30 epochs per stage, batch size 8 and Adam learning rate `3e-4`. Checkpoints are saved under `saved_models/last_EEG_EEG_DINOv3_S_src_<domain>_.pt` within this branch.
-
 ## 9. Troubleshooting
 
 | Symptom | Check / action |
@@ -326,4 +297,4 @@ A meaningful comparison with the CNN baseline should use identical subject split
 - **Original method:** Ragab et al., [Self-supervised Autoregressive Domain Adaptation for Time Series Data](https://arxiv.org/abs/2111.14834v2); [official SLARDA code](https://github.com/mohamedr002/SLARDA).
 - **Backbone:** [Meta DINOv3](https://github.com/facebookresearch/dinov3), [official model card](https://huggingface.co/facebook/dinov3-vits16-pretrain-lvd1689m), and [Transformers DINOv3 documentation](https://huggingface.co/docs/transformers/model_doc/dinov3).
 - **README presentation reference:** [DeepSatModels-DINOv3](https://github.com/loanhviet/DeepSatModels-DINOv3), for its architecture, code mapping and verification walkthrough. Its satellite-specific adapters and frozen-backbone choices are not this EEG implementation.
-- **Code licenses:** the inherited training trees retain their [adaptation MIT license](Autorgressive_Adaptation/LICENSE) and [self-supervised MIT license](Self-supervised%20training/LICENSE). DINOv3 weights have their [own license terms](https://github.com/facebookresearch/dinov3/blob/main/LICENSE.md). The paper figure retains its original attribution and is not covered by the code's MIT license.
+- **Code license:** the inherited adaptation tree retains its [MIT license](Autorgressive_Adaptation/LICENSE). DINOv3 weights have their [own license terms](https://github.com/facebookresearch/dinov3/blob/main/LICENSE.md). The paper figure retains its original attribution and is not covered by the code's MIT license.
