@@ -1,5 +1,7 @@
 # Thay encoder (backbone) bằng DINOv3
 
+Tài liệu: [SLARDA_DINOv3 - English README, source code and setup](SLARDA_DINOv3/README.md) · [Các lệnh Git/GitHub](README_GITHUB_COMMANDS.md).
+
 Đối chiếu CNN 1D của SLARDA với DINOv3 ViT-S/16 trong bản tham chiếu SLARDA_DINOv3. Bài toán vẫn là phân loại đoạn EEG 30 giây thành W, N1, N2, N3 hoặc REM. Thay đổi chính nằm ở cách biểu diễn EEG, nên cả quá trình học và dự đoán đều chịu ảnh hưởng.
 
 ## 1. Logic xử lý thay đổi thế nào?

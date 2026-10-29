@@ -1,0 +1,16 @@
+torch
+transformers>=5.0
+einops
+safetensors
+pyedflib
+edfio
+numpy
+pandas
+scikit-learn
+scipy
+matplotlib
+plotly
+torchvision
+tensorboard
+wandb
+openpyxl

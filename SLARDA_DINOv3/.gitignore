@@ -1,0 +1,14 @@
+.venv/
+**/__pycache__/
+**/data/
+**/saved_models/
+**/src_only_saved_models/
+**/experiments_logs/
+QuickRun/
+**/checkpoints/
+**/visualize/
+*.pt
+*.pth
+*.safetensors
+*.onnx
+*.npy
